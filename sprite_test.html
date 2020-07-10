@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+canvas {
+    border:1px solid #d3d3d3;
+    background-color: #ffffff;
+}
+</style>
+</head>
+<body onload="startGame()">
+<script>
+
+function startGame() {
+	myText = new textComponent("12px", "Consolas", "black", 40, 40);
+	mySprites = [new spriteComponent("art/test_tile.png", 64, 64, 0, 0)];
+	
+	// Made up game board
+	for (ii = 0; ii < 64; ii++) {
+		for (jj = 0; jj < 64; jj++) {
+			if ((ii == 0) && (jj == 0)) {
+				// Do nothing
+			}
+			else {
+				mySprites.push(new spriteComponent("art/test_tile.png", 64, 64, ii * 64, jj * 64));
+			}
+		}
+	}
+	
+	myView = new viewComponent(270, 480);
+	myView.update_view();
+	
+	myBufferArea.start();
+	myBufferArea.clear();
+	
+	myGameArea.start();
+}
+
+var myBufferArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = 480;
+        this.canvas.height = 270;
+        this.context = this.canvas.getContext("2d");        
+        },
+    clear : function() {
+		this.context.fillStyle = "#FFFFFF"
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+}
+
+var myGameArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = 480;
+        this.canvas.height = 270;
+        this.context = this.canvas.getContext("2d");
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.frameNo = 0;
+        this.interval = setInterval(updateGameArea, 80);
+        },
+    clear : function() {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+}
+
+function viewComponent(h, w) {
+	// Object to hold the view information
+	
+	// Scaling between height and width
+	this.scale = 1;
+	
+	// Original height and width
+	this.height = h;
+	this.width = w;
+	
+	this.x = 0;
+	this.y = 0;
+	
+	// The points that define the view
+	this.x1 = 1;
+	this.x2 = 1;
+	this.y1 = 1;
+	this.y2 = 1;
+		
+	// Main function for updating the view in response to navigation
+	this.update_view = function() {
+		this.x1 = this.x - this.width / 2 * this.scale;
+		this.x2 = this.x + this.width / 2 * this.scale - 1;
+		
+		this.y1 = this.y - this.height / 2 * this.scale;
+		this.y2 = this.y + this.height / 2 * this.scale;
+	}
+	
+	// Reset the view to near the origin
+	this.reset_view = function() {
+		this.scale = 1;
+		this.x = 0;
+		this.y = 0;
+		
+		this.update_view();
+	}
+		
+	// Zoom in and out functions
+	this.zoom_in = function() {
+		if (this.scale > 0.25) {
+			this.scale = this.scale / 2;			
+			
+			this.update_view();
+		}
+	}
+	
+	this.zoom_out = function() {
+		this.scale = this.scale * 2;
+		
+		this.update_view();
+	}
+	
+	// Move the view right, left, up and down
+	this.move_right = function() {
+		this.x = this.x + this.scale;
+		
+		this.update_view();
+	}
+	
+	this.move_left = function() {
+		this.x = this.x - this.scale;
+		
+		this.update_view();
+	}
+	
+	this.move_up = function() {
+		this.y = this.y - this.scale;
+		
+		this.update_view();
+	}
+	
+	this.move_down = function() {
+		this.y = this.y + this.scale;
+		
+		this.update_view();
+	}
+}
+
+function textComponent(width, font, color, x, y) {    
+    this.width = width;
+    this.font = font;
+	this.color = color;
+    this.x = x;
+    this.y = y;
+	this.text = "";
+    
+    this.update = function() {
+        ctx = myBufferArea.context;        
+		ctx.font = this.width + " " + this.font;
+        ctx.fillStyle = color;
+        ctx.fillText(this.text, this.x, this.y);
+    }    
+}
+
+function spriteComponent(img_stand, h, w, x, y) {
+	this.img_stand = new Image();
+	this.img_stand.src = img_stand;
+		
+	this.x = x;
+	this.y = y;
+	this.h = h;
+	this.w = w;
+	
+	this.x2 = x + w;
+	this.y2 = y + h;
+	
+	this.draw_x = x;
+	this.draw_y = y;
+	this.draw_h = h;
+	this.draw_w = w;
+	
+	this.draw_it = 0;
+		
+	this.update = function(a_view) {
+		// Hit test to see if the image should be drawn
+		if (this.x > a_view.x2) {
+			this.draw_it = 0;
+			return;
+		}
+		
+		if (this.y > a_view.y2) {
+			this.draw_it = 0;
+			return;
+		}
+		
+		if (this.x2 < a_view.x1) {
+			this.draw_it = 0;
+			return;
+		}
+		
+		if (this.y2 < a_view.y1) {
+			this.draw_it = 0;
+			return;
+		}
+		
+		this.draw_it = 1;
+		// The drawing coordinates and scale
+		this.draw_x = (this.x - a_view.x1) / a_view.scale;
+		this.draw_y = (this.y - a_view.y1) / a_view.scale;
+		this.draw_h = this.h / a_view.scale;
+		this.draw_w = this.w / a_view.scale;
+		
+		// Draw it
+		ctx = myBufferArea.context;		
+		ctx.drawImage(this.img_stand, this.draw_x, this.draw_y, this.draw_w, this.draw_h);
+			
+	}	
+}
+	
+
+function updateGameArea() {    
+	myGameArea.frameNo += 1;
+    
+    myBufferArea.clear();
+	
+    myText.text = "FRM: " + myGameArea.frameNo + ", " + myView.x1 + "," + myView.y1 + "," + myView.x2 + "," + myView.y2;
+    myText.update();   
+		
+	for (ii = 0; ii < mySprites.length; ii++) {
+		mySprites[ii].update(myView);
+	}
+	
+	myGameArea.clear();
+	ctx = myGameArea.context;
+	ctx.drawImage(myBufferArea.canvas, 0, 0);
+}
+
+function resetFrameNo() {
+	myGameArea.frameNo = 0;
+}
+
+function moveLeft() {
+	myView.move_left();
+}
+
+function moveRight() {
+	myView.move_right();
+}
+
+function moveDown() {
+	myView.move_down();
+}
+
+function moveUp() {
+	myView.move_up();
+}
+
+function zoomIn() {
+	myView.zoom_in();
+}
+
+function zoomOut() {
+	myView.zoom_out();
+}
+
+</script>
+<br>
+<button onmouseup="resetFrameNo()">RESET</button>
+<button onmouseup="moveLeft()">Move Left</button>
+<button onmouseup="moveRight()">Move Right</button>
+<button onmouseup="moveDown()">Move Down</button>
+<button onmouseup="moveUp()">Move Up</button>
+
+<button onmouseup="zoomIn()">Zoom In</button>
+<button onmouseup="zoomOut()">Zoom Out</button>
+</body>
+</html>
